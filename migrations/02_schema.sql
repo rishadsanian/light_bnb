@@ -17,4 +17,4 @@ CREATE TABLE guest_reviews (
   reservation_id INTEGER REFERENCES reservations(id) ON DELETE CASCADE,
   rating SMALLINT NOT NULL DEFAULT 0,
   message TEXT
-);
+); 
