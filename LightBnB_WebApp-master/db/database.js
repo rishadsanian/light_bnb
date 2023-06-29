@@ -73,7 +73,7 @@ const addUser = (user) => {
     .query(
       `
     SELECT * FROM users
-    WHERE email = $1;
+    WHERE email = $2;
     `,
       [email]
     )
@@ -184,8 +184,6 @@ GROUP BY p.id`;
 LIMIT $${queryParams.length};
 `;
 
-  console.log(queryString, queryParams);
-
   return pool
     .query(queryString, queryParams)
     .then((res) => {
@@ -198,16 +196,36 @@ LIMIT $${queryParams.length};
     });
 };
 
-
 /* Add a property to the database
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
-const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+const addProperty = (property) => {
+  //destructure keys and values into arrays
+  const columns = Object.keys(property);
+  const values = Object.values(property);
+  const placeholders = [];
+  
+  //placeholders for parameterized queries
+  for (let i = 0; i < values.length; i++) {
+    placeholders.push(`$${i + 1}`);
+  }
+
+  //queryString
+  const qs = `
+    INSERT INTO properties (${columns.join(", ")})
+    VALUES (${placeholders.join(", ")})
+    RETURNING *;
+  `;
+
+  return pool
+    .query(qs, values)
+    .then((result) => {
+      return result.rows;
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
 };
 
 module.exports = {
