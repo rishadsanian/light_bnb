@@ -107,9 +107,6 @@ const addUser = (user) => {
  * @param {string} guest_id The id of the user.
  * @return {Promise<[{}]>} A promise to the reservations.
  */
-// const getAllReservations = function (guest_id, limit = 10) {
-//   return getAllProperties(null, 2);
-// };
 
 const getAllReservations = (guestId, limit = 10) => {
   return pool
@@ -127,7 +124,7 @@ const getAllReservations = (guestId, limit = 10) => {
       [guestId, limit]
     )
     .then((result) => {
-      console.log(result.rows);
+      // console.log(result.rows);
       return result.rows;
     })
     .catch((err) => {
@@ -143,26 +140,66 @@ const getAllReservations = (guestId, limit = 10) => {
  * @param {*} limit The number of results to return.
  * @return {Promise<[{}]>}  A promise to the properties.
  */
+
 const getAllProperties = (options, limit = 10) => {
+  const queryParams = [];
+
+  let queryString = `
+SELECT p.owner_id, p.id,p.title, p.number_of_bedrooms, p.number_of_bathrooms, p.parking_spaces, p.cost_per_night, p.thumbnail_photo_url, p.description, p.cover_photo_url, p.country, p.city, p.province, p.street, p.post_code, AVG(r.rating) as average_rating
+FROM properties p JOIN property_reviews r
+ON r.property_id = p.id
+WHERE 1=1
+`;
+
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += `AND p.city LIKE $${queryParams.length}`;
+  }
+
+  if (options.minimum_price_per_night) {
+    queryParams.push(`${options.minimum_price_per_night * 100}`);
+    queryString += ` AND p.cost_per_night >= $${queryParams.length}`;
+  }
+
+  if (options.maximum_price_per_night) {
+    queryParams.push(`${options.maximum_price_per_night * 100}`);
+    queryString += ` AND p.cost_per_night <= $${queryParams.length}`;
+  }
+
+  if (options.owner_id) {
+    queryParams.push(`${options.owner_id}`);
+    queryString += ` AND p.owner_id = $${queryParams.length}`;
+  }
+
+  queryString += ` 
+GROUP BY p.id`;
+
+  if (options.minimum_rating) {
+    queryParams.push(`${options.minimum_rating}`);
+    queryString += ` HAVING AVG(r.rating) >= $${queryParams.length}`;
+  }
+
+  queryParams.push(limit);
+  queryString += `
+LIMIT $${queryParams.length};
+`;
+
+  console.log(queryString, queryParams);
+
   return pool
-    .query(
-      `
-      SELECT * FROM properties 
-      LIMIT $1;
-      `,
-      [limit]
-    )
-    .then((result) => {
-      return result.rows;
+    .query(queryString, queryParams)
+    .then((res) => {
+      return res.rows.length === 0
+        ? console.log("No properties found within criteria")
+        : res.rows;
     })
     .catch((err) => {
       console.log(err.message);
     });
 };
 
-// getAllProperties();
-/**
- * Add a property to the database
+
+/* Add a property to the database
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
