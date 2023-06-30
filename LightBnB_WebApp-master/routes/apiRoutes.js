@@ -35,6 +35,7 @@ router.post("/properties", (req, res) => {
   }
 
   const newProperty = req.body;
+  // eslint-disable-next-line camelcase
   newProperty.owner_id = userId;
   database
     .addProperty(newProperty)
